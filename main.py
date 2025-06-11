@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pathlib import Path
 import io
 import math
+import numpy as np
 
 # Matplotlib se emplea en modo "Agg" para que funcione sin servidor de ventanas
 import matplotlib
@@ -23,7 +24,14 @@ app = FastAPI()
 HTML_PATH = Path(__file__).parent / "static" / "index.html"
 
 
-def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float) -> bytes:
+def draw_bolt_diagram(
+    bolt_type: str,
+    D: float,
+    L: float,
+    C: float,
+    T: float,
+    closing_angle: float = 180.0,
+) -> bytes:
     """Genera un plano tecnico del perno usando matplotlib.
 
     Parameters
@@ -38,6 +46,8 @@ def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float) ->
         Largo del gancho.
     T : float
         Longitud de la rosca desde la parte superior.
+    closing_angle : float, optional
+        Angulo de cierre del gancho en grados (solo para tipo J).
     """
 
     fig, ax = plt.subplots(figsize=(5, 6))
@@ -49,22 +59,34 @@ def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float) ->
     # --------- Dibujo del perno ---------
     ax.plot([0, 0], [0, L], color="black", linewidth=D, solid_capstyle="butt")
 
+    lower_limit = -offset * 1.5
     if bolt_type.upper() == "L":
         ax.plot([0, -C], [0, 0], color="black", linewidth=D, solid_capstyle="butt")
         hook_left = -C
-    else:  # tipo J
+    else:  # tipo J con gancho curvo
         r = 4 * D
-        steps = 40
-        arc_x = []
-        arc_y = []
-        for i in range(steps + 1):
-            theta = -math.pi * i / steps
-            arc_x.append(-r + r * math.cos(theta))
-            arc_y.append(r * math.sin(theta))
+        angle_rad = math.radians(closing_angle)
+        theta = np.linspace(0.0, angle_rad, 60)
+        arc_x = -r * (1 - np.cos(theta))
+        arc_y = -r * np.sin(theta)
         ax.plot(arc_x, arc_y, color="black", linewidth=D, solid_capstyle="butt")
-        if C > 2 * r:
-            ax.plot([-C, -2 * r], [0, 0], color="black", linewidth=D, solid_capstyle="butt")
-        hook_left = -max(C, 2 * r)
+
+        arc_length = r * angle_rad
+        if C > arc_length:
+            extra = C - arc_length
+            dx = -r * np.sin(angle_rad)
+            dy = -r * np.cos(angle_rad)
+            norm = math.hypot(dx, dy)
+            end_x = arc_x[-1]
+            end_y = arc_y[-1]
+            line_x = [end_x, end_x + dx / norm * extra]
+            line_y = [end_y, end_y + dy / norm * extra]
+            ax.plot(line_x, line_y, color="black", linewidth=D, solid_capstyle="butt")
+            end_x = line_x[-1]
+        else:
+            end_x = arc_x[-1]
+        hook_left = min(end_x, -D / 2)
+        lower_limit = min(lower_limit, arc_y.min() - offset)
 
     # Zona roscada en gris con rayado
     if T > 0:
@@ -105,24 +127,25 @@ def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float) ->
     ax.annotate(
         "",
         xy=(0, -offset / 2),
-        xytext=(-C, -offset / 2),
+        xytext=(hook_left, -offset / 2),
         arrowprops=dict(arrowstyle="<->", color="red"),
     )
-    ax.text(-C / 2, -offset / 2 - 2, f"C: {C} mm", color="red", ha="center", va="top")
+    ax.text(hook_left / 2, -offset / 2 - 2, f"C: {C} mm", color="red", ha="center", va="top")
 
     # Diametro (debajo del perno)
+    y_d = L + offset * 0.2
     ax.annotate(
         "",
-        xy=(-D / 2, -offset),
-        xytext=(D / 2, -offset),
+        xy=(-D / 2, y_d),
+        xytext=(D / 2, y_d),
         arrowprops=dict(arrowstyle="<->", color="red"),
     )
-    ax.text(0, -offset - 2, f"D: {D} mm", color="red", ha="center", va="top")
+    ax.text(0, y_d + 2, f"D: {D} mm", color="red", ha="center", va="bottom")
 
     # Ajustes finales del grafico
     ax.axis("off")
     ax.set_xlim(left, right + offset)
-    ax.set_ylim(-offset * 1.5, L + offset * 0.5)
+    ax.set_ylim(lower_limit, L + offset * 0.5)
 
     buffer = io.BytesIO()
     fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight")
@@ -144,9 +167,10 @@ async def image(
     L: float = Query(200.0, alias="L"),
     C: float = Query(50.0, alias="C"),
     T: float = Query(50.0, alias="T"),
+    closing_angle: float = Query(180.0, alias="closing_angle"),
 ) -> StreamingResponse:
     """Devuelve la imagen PNG generada."""
-    data = draw_bolt_diagram(bolt_type, D, L, C, T)
+    data = draw_bolt_diagram(bolt_type, D, L, C, T, closing_angle)
     return StreamingResponse(io.BytesIO(data), media_type="image/png")
 
 
@@ -157,9 +181,12 @@ async def draw_page(
     L: float = Query(200.0, alias="L"),
     C: float = Query(50.0, alias="C"),
     T: float = Query(50.0, alias="T"),
+    closing_angle: float = Query(180.0, alias="closing_angle"),
 ) -> str:
     """Muestra la imagen y ofrece la descarga."""
-    query = f"type={bolt_type}&D={D}&L={L}&C={C}&T={T}"
+    query = (
+        f"type={bolt_type}&D={D}&L={L}&C={C}&T={T}&closing_angle={closing_angle}"
+    )
     img_tag = f'<img src="/image?{query}" alt="boceto">'
     download = f'<a href="/image?{query}" download="bolt.png">Descargar imagen</a>'
     back = '<p><a href="/">Volver</a></p>'
