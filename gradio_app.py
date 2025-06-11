@@ -1,4 +1,4 @@
-"""Gradio interface to generate technical drawings of anchor bolts."""
+"""Interactive Gradio app that renders anchor bolts with Matplotlib."""
 
 import io
 from math import radians
@@ -11,8 +11,16 @@ import numpy as np
 import gradio as gr
 
 
-def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float, closing_angle: float = 180.0) -> bytes:
-    """Return PNG image bytes with a technical drawing of an anchor bolt."""
+def draw_bolt_diagram(
+    bolt_type: str,
+    D: float,
+    L: float,
+    C: float,
+    T: float,
+    closing_angle: float = 180.0,
+) -> bytes:
+    """Return PNG bytes with a 2D technical diagram of an anchor bolt."""
+
     fig, ax = plt.subplots(figsize=(5, 6))
     ax.set_aspect("equal")
 
@@ -22,15 +30,16 @@ def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float, cl
     ax.plot([0, 0], [0, L], color="black", linewidth=D, solid_capstyle="butt")
 
     if bolt_type.upper() == "L":
+        # simple 90° hook
         ax.plot([0, -C], [0, 0], color="black", linewidth=D, solid_capstyle="butt")
         arc_length = C
         end_x = -C
-        end_y = 0
         bottom_y = 0
     else:
+        # curved J hook
         r = 4 * D
         angle_rad = radians(closing_angle)
-        theta = np.linspace(0, angle_rad, 60)
+        theta = np.linspace(0.0, angle_rad, 60)
         arc_x = -r * (1 - np.cos(theta))
         arc_y = -r * np.sin(theta)
         ax.plot(arc_x, arc_y, color="black", linewidth=D, solid_capstyle="butt")
@@ -41,47 +50,87 @@ def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float, cl
             extra = C - arc_length
             dx = -np.sin(angle_rad)
             dy = -np.cos(angle_rad)
-            ax.plot([end_x, end_x + dx * extra], [end_y, end_y + dy * extra],
-                    color="black", linewidth=D, solid_capstyle="butt")
+            ax.plot(
+                [end_x, end_x + dx * extra],
+                [end_y, end_y + dy * extra],
+                color="black",
+                linewidth=D,
+                solid_capstyle="butt",
+            )
             end_x += dx * extra
             end_y += dy * extra
         bottom_y = arc_y.min()
 
     L_total = L + arc_length
 
-    # threaded region
+    # threaded region aligned with shaft width
     if T > 0:
-        thread = patches.Rectangle((-D / 2, L - T), D, T,
-                                   facecolor="white", edgecolor="gray", hatch="////")
+        thread = patches.Rectangle(
+            (-D / 2, L - T),
+            D,
+            T,
+            facecolor="white",
+            edgecolor="gray",
+            hatch="////",
+        )
         ax.add_patch(thread)
 
     right = D / 2 + offset
     left = end_x - offset
 
-    # Total length dimension
-    ax.annotate("", xy=(right, bottom_y), xytext=(right, L),
-                arrowprops=dict(arrowstyle="<->", color="red"))
-    ax.text(right + 2, (L + bottom_y) / 2, f"L_total: {L_total:.1f} mm", color="red", va="center")
+    # total length
+    ax.annotate(
+        "",
+        xy=(right, bottom_y),
+        xytext=(right, L),
+        arrowprops=dict(arrowstyle="<->", color="red"),
+    )
+    ax.text(
+        right + 2,
+        (L + bottom_y) / 2,
+        f"L_total: {L_total:.1f} mm",
+        color="red",
+        va="center",
+    )
 
-    # Thread dimension
-    ax.annotate("", xy=(left, L - T), xytext=(left, L),
-                arrowprops=dict(arrowstyle="<->", color="red"))
-    ax.text(left - 2, L - T / 2, f"T: {T} mm", color="red", ha="right", va="center")
+    # thread length
+    ax.annotate(
+        "",
+        xy=(left, L - T),
+        xytext=(left, L),
+        arrowprops=dict(arrowstyle="<->", color="red"),
+    )
+    ax.text(
+        left - 2,
+        L - T / 2,
+        f"T: {T} mm",
+        color="red",
+        ha="right",
+        va="center",
+    )
 
-    # Hook dimension
+    # hook length
     hook_y = bottom_y - offset * 0.3
-    ax.annotate("", xy=(0, hook_y), xytext=(end_x, hook_y),
-                arrowprops=dict(arrowstyle="<->", color="red"))
+    ax.annotate(
+        "",
+        xy=(0, hook_y),
+        xytext=(end_x, hook_y),
+        arrowprops=dict(arrowstyle="<->", color="red"),
+    )
     ax.text(end_x / 2, hook_y - 2, f"C: {C} mm", color="red", ha="center", va="top")
 
-    # Diameter dimension
+    # diameter
     diam_y = L + offset * 0.3
-    ax.annotate("", xy=(-D / 2, diam_y), xytext=(D / 2, diam_y),
-                arrowprops=dict(arrowstyle="<->", color="red"))
+    ax.annotate(
+        "",
+        xy=(-D / 2, diam_y),
+        xytext=(D / 2, diam_y),
+        arrowprops=dict(arrowstyle="<->", color="red"),
+    )
     ax.text(0, diam_y + 2, f"D: {D} mm", color="red", ha="center", va="bottom")
 
-    # labels for arc length and total length
-    ax.text(left, L + offset * 0.1, f"Arc Length: {arc_length:.1f} mm", color="blue")
+    if bolt_type.upper() == "J":
+        ax.text(left, L + offset * 0.1, f"Arc Length: {arc_length:.1f} mm", color="blue")
     ax.text(left, L + offset * 0.1 - 10, f"Total Length: {L_total:.1f} mm", color="blue")
 
     ax.axis("off")
@@ -95,27 +144,41 @@ def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float, cl
     return buf.getvalue()
 
 
-def generate(bolt_type, D, L, C, T, closing_angle):
-    return draw_bolt_diagram(bolt_type, D, L, C, T, closing_angle)
+def main() -> None:
+    """Launch the interactive Gradio interface."""
 
+    with gr.Blocks() as demo:
+        gr.Markdown("# Anchor Bolt Designer")
 
-def main():
-    interface = gr.Interface(
-        fn=generate,
-        inputs=[
-            gr.Radio(["L", "J"], label="Bolt Type", value="L"),
-            gr.Number(label="Diameter D (mm)", value=20),
-            gr.Number(label="Straight Length L (mm)", value=200),
-            gr.Number(label="Hook Length C (mm)", value=50),
-            gr.Number(label="Thread Length T (mm)", value=50),
-            gr.Number(label="Closing Angle (°)", value=180),
-        ],
-        outputs=gr.Image(type="pil", label="Diagram"),
-        live=True,
-        title="Anchor Bolt Diagram",
-        description="Interactive drawing of L or J anchor bolts. Closing angle only applies to J-type bolts.",
-    )
-    interface.launch()
+        with gr.Row():
+            with gr.Column():
+                bolt_type = gr.Radio(["L", "J"], label="Bolt Type", value="L")
+                D = gr.Number(value=20, label="Diameter D (mm)")
+                L_val = gr.Number(value=200, label="Straight Length L (mm)")
+                C = gr.Number(value=50, label="Hook Length C (mm)")
+                T = gr.Number(value=50, label="Thread Length T (mm)")
+                closing_angle = gr.Number(value=180, label="Closing Angle (°)")
+
+            with gr.Column():
+                output_img = gr.Image(label="Diagram")
+                download = gr.DownloadButton(label="Download PNG", filename="bolt.png")
+
+        def refresh(bt, d, l, c, t, angle):
+            png = draw_bolt_diagram(bt, d, l, c, t, angle)
+            return png, png
+
+        inputs = [bolt_type, D, L_val, C, T, closing_angle]
+
+        for comp in inputs:
+            comp.change(refresh, inputs=inputs, outputs=[output_img, download])
+
+        bolt_type.change(
+            lambda b: gr.update(visible=b == "J"),
+            inputs=bolt_type,
+            outputs=closing_angle,
+        )
+
+    demo.launch()
 
 
 if __name__ == "__main__":

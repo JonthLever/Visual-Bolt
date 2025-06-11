@@ -18,10 +18,10 @@ Mantener los archivos separados facilita modificar la lógica de servidor o la i
 
 La página principal (`/`) permite introducir las medidas y elegir el tipo de perno. Al enviar el formulario se redirige a `/draw`, donde se muestra la imagen generada y un enlace para descargarla como PNG.
 
-El formulario solicita las medidas en el siguiente orden para facilitar la lectura:
+Para un modo totalmente interactivo ejecuta `gradio_app.py`:
 
-1. **D** - diámetro del perno
-2. **L** - largo total
+Se abrirá una interfaz web en la que los controles y el dibujo permanecen visibles en la misma página. Podrás elegir el tipo de perno (**L** o **J**) y los valores de **D**, **L**, **C**, **T** y **closing_angle**. Al mover cualquiera de estos controles la imagen se actualiza de inmediato mostrando:
+Junto a la vista previa se incluye un botón para descargar el PNG generado.
 3. **C** - largo del gancho
 4. **T** - longitud de la rosca
 5. **closing_angle** - ángulo de cierre del gancho (solo tipo J)
