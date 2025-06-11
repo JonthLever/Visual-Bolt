@@ -3,7 +3,9 @@ Graphical representation of custom anchor bolts, by simply entering certain meas
 
 Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python** y **Matplotlib**. El servidor **FastAPI** recibe las medidas y devuelve una imagen PNG con las cotas (medidas) distribuídas alrededor del perno. El dibujo es en 2D con un estilo similar a un plano técnico.
 
-El boceto se crea con la función `draw_bolt_diagram`, la cual acepta el tipo de perno (`L` o `J`) y las dimensiones **D**, **L**, **C** y **T**. Para el tipo **J** se puede ajustar el parámetro adicional `closing_angle` (grados) que determina cuánto se cierra la curva del gancho. El área roscada se muestra con un rayado gris y se utilizan líneas de referencia rojas para marcar las medidas.
+La aplicación funciona únicamente con las bibliotecas disponibles en el entorno (FastAPI y Matplotlib). Para mantener las dependencias al mínimo, los cálculos de la curva tipo J se realizan con funciones básicas de `math` y no requieren NumPy.
+
+El boceto se crea con la función `draw_bolt_diagram`, la cual acepta el tipo de perno (`L` o `J`) y las dimensiones **D**, **L**, **C** y **T**. Para el tipo **J** se puede ajustar el parámetro adicional `closing_angle` (grados) que determina cuánto se cierra la curva del gancho. La sección roscada se indica con un rectángulo rayado (`////`) sobre el cuerpo negro del perno y se utilizan líneas de referencia rojas para marcar las medidas.
 
 ## Estructura del proyecto
 
@@ -38,3 +40,19 @@ uvicorn main:app --reload
 ```
 
 Abre `http://localhost:8000` en tu navegador. Llena el formulario y presiona **Generar** para obtener el boceto. El resultado se muestra en una nueva página con un enlace para descargar la imagen PNG.
+
+## Interfaz interactiva con Gradio
+
+Para obtener un diagrama que se actualice en tiempo real puedes ejecutar `gradio_app.py`:
+
+```bash
+python3 gradio_app.py
+```
+
+Se abrirá una interfaz web donde podrás elegir el tipo de perno (**L** o **J**) y los valores de **D**, **L**, **C**, **T** y **closing_angle**. Al modificar cualquier parámetro la imagen se actualiza mostrando:
+
+- Las cotas de diámetro, gancho, rosca y longitud total
+- Un texto con la longitud del arco calculada mediante `4×D × radians(closing_angle)`
+- Un texto con la longitud total del perno (largo recto + arco)
+
+La imagen puede descargarse desde el botón de Gradio.

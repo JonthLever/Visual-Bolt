@@ -10,7 +10,6 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pathlib import Path
 import io
 import math
-import numpy as np
 
 # Matplotlib se emplea en modo "Agg" para que funcione sin servidor de ventanas
 import matplotlib
@@ -66,16 +65,17 @@ def draw_bolt_diagram(
     else:  # tipo J con gancho curvo
         r = 4 * D
         angle_rad = math.radians(closing_angle)
-        theta = np.linspace(0.0, angle_rad, 60)
-        arc_x = -r * (1 - np.cos(theta))
-        arc_y = -r * np.sin(theta)
+        steps = 60
+        theta_values = [i * angle_rad / steps for i in range(steps + 1)]
+        arc_x = [-r * (1 - math.cos(t)) for t in theta_values]
+        arc_y = [-r * math.sin(t) for t in theta_values]
         ax.plot(arc_x, arc_y, color="black", linewidth=D, solid_capstyle="butt")
 
         arc_length = r * angle_rad
         if C > arc_length:
             extra = C - arc_length
-            dx = -r * np.sin(angle_rad)
-            dy = -r * np.cos(angle_rad)
+            dx = -r * math.sin(angle_rad)
+            dy = -r * math.cos(angle_rad)
             norm = math.hypot(dx, dy)
             end_x = arc_x[-1]
             end_y = arc_y[-1]
@@ -86,7 +86,7 @@ def draw_bolt_diagram(
         else:
             end_x = arc_x[-1]
         hook_left = min(end_x, -D / 2)
-        lower_limit = min(lower_limit, arc_y.min() - offset)
+        lower_limit = min(lower_limit, min(arc_y) - offset)
 
     # Zona roscada en gris con rayado
     if T > 0:
@@ -94,10 +94,11 @@ def draw_bolt_diagram(
             (-D / 2, L - T),
             D,
             T,
-            linewidth=1,
+            linewidth=0.5,
             edgecolor="gray",
-            facecolor="none",
+            facecolor="white",
             hatch="////",
+            zorder=3,
         )
         ax.add_patch(thread)
 
