@@ -5,75 +5,30 @@
     <title>Visual Bolt</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
-        canvas { border: 1px solid #333; }
         label { display: block; margin-top: 10px; }
     </style>
 </head>
 <body>
     <h1>Visual Bolt</h1>
     <p>Ingresa las medidas para generar el perno de anclaje.</p>
-    <label>Tipo:
-        <select id="type">
-            <option value="straight">Recto</option>
-            <option value="L">L</option>
-            <option value="J">J</option>
-        </select>
-    </label>
-    <label>Longitud total (mm): <input type="number" id="length" value="200"></label>
-    <label>Longitud de gancho (mm): <input type="number" id="hook" value="50"></label>
-    <label>Longitud de rosca (mm): <input type="number" id="thread" value="50"></label>
-    <button onclick="drawBolt()">Dibujar</button>
-
-    <p></p>
-    <canvas id="boltCanvas" width="500" height="300"></canvas>
-
-    <script>
-    function drawBolt() {
-        const type = document.getElementById('type').value;
-        const length = parseFloat(document.getElementById('length').value);
-        const hook = parseFloat(document.getElementById('hook').value);
-        const thread = parseFloat(document.getElementById('thread').value);
-
-        const canvas = document.getElementById('boltCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-
-        // Simple scaling so the bolt fits in canvas
-        const scale = canvas.height * 0.8 / Math.max(length, hook);
-        ctx.save();
-        ctx.translate(50, canvas.height * 0.9); // start drawing near bottom left
-        ctx.scale(scale, -scale); // invert y to draw upwards
-
-        // Draw main shank
-        const bodyLength = length - hook;
-        ctx.beginPath();
-        ctx.moveTo(0,0);
-        ctx.lineTo(0, bodyLength);
-        ctx.stroke();
-
-        if (type === 'L') {
-            // 90 degree bend
-            ctx.lineTo(hook, bodyLength);
-            ctx.stroke();
-        } else if (type === 'J') {
-            // 180 degree bend (semi circle)
-            const radius = hook / Math.PI;
-            ctx.arc(radius, bodyLength - radius, radius, Math.PI/2, 3*Math.PI/2, false);
-            ctx.stroke();
-        }
-
-        // Mark thread region
-        if (thread > 0) {
-            ctx.beginPath();
-            ctx.moveTo(-0.1, thread);
-            ctx.lineTo(0.1, thread);
-            ctx.moveTo(-0.1, 0);
-            ctx.lineTo(0.1, 0);
-            ctx.stroke();
-            ctx.fillText('Rosca', 0.2, thread/2);
-        }
-        ctx.restore();
-    }
-    </script>
+    <form action="/draw" method="get">
+        <label>Tipo:
+            <select name="type">
+                <option value="straight">Recto</option>
+                <option value="L">L</option>
+                <option value="J">J</option>
+            </select>
+        </label>
+        <label>Longitud total (mm):
+            <input type="number" name="length" value="200">
+        </label>
+        <label>Longitud de gancho (mm):
+            <input type="number" name="hook" value="50">
+        </label>
+        <label>Longitud de rosca (mm):
+            <input type="number" name="thread" value="50">
+        </label>
+        <button type="submit">Generar</button>
+    </form>
 </body>
 </html>

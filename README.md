@@ -1,15 +1,15 @@
 # Visual-Bolt
 
-Esta pequeña aplicación permite generar un boceto sencillo de un perno de anclaje según medidas ingresadas por el usuario. Se apoya en **FastAPI** para servir la página y en **HTML5 canvas** para dibujar el perno con JavaScript.
+Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python**. Se usa **FastAPI** para recibir las medidas y devolver un archivo SVG que puede mostrarse o descargarse desde el navegador.
 
 ## Estructura del proyecto
 
 ```
-main.py             # Servidor FastAPI que entrega la página
-static/index.html   # Página con el formulario y el código de dibujo
+main.py             # Servidor FastAPI y generación del SVG
+static/index.html   # Formulario HTML para solicitar las medidas
 ```
 
-Mantener los archivos separados facilita modificar la lógica de servidor o de interfaz por separado, pero el proyecto es lo suficientemente pequeño para mantenerse simple.
+Mantener los archivos separados facilita modificar la lógica de servidor o la interfaz por separado.
 
 ## Ejecución
 
@@ -19,5 +19,4 @@ Con Python 3 instalado solo debes ejecutar:
 uvicorn main:app --reload
 ```
 
-Luego abre `http://localhost:8000` en el navegador. Introduce las medidas, selecciona el tipo de perno (recto, L o J) y presiona **Dibujar** para ver el boceto.
-
+Abre `http://localhost:8000` en tu navegador. Llena el formulario y presiona **Generar** para obtener el boceto. El resultado se muestra en una nueva página con un enlace para descargar el SVG.
