@@ -43,16 +43,16 @@ Abre `http://localhost:8000` en tu navegador. Llena el formulario y presiona **G
 
 ## Interfaz interactiva con Gradio
 
-Para obtener un diagrama que se actualice en tiempo real puedes ejecutar `gradio_app.py`:
+Para un modo totalmente interactivo ejecuta `gradio_app.py`:
 
 ```bash
 python3 gradio_app.py
 ```
 
-Se abrirá una interfaz web donde podrás elegir el tipo de perno (**L** o **J**) y los valores de **D**, **L**, **C**, **T** y **closing_angle**. Al modificar cualquier parámetro la imagen se actualiza mostrando:
+Se abrirá una interfaz web en la que los controles y el dibujo permanecen visibles en la misma página. Además de elegir el tipo (**L** o **J**) podrás definir la unidad de medida, el diámetro **D**, la longitud del eje **S**, el gancho **C**, la rosca **T** y, para pernos tipo J, el ángulo de cierre. La aplicación valida que las medidas sean positivas y que la rosca no sea más larga que el eje.
 
-- Las cotas de diámetro, gancho, rosca y longitud total
-- Un texto con la longitud del arco calculada mediante `4×D × radians(closing_angle)`
-- Un texto con la longitud total del perno (largo recto + arco)
+- Las cotas se actualizan mostrando **D**, **C**, **S**, **T** y la longitud total
+- Para pernos J se indica la longitud del arco calculada con `4×D × radians(closing_angle)`
+- Si las medidas no son válidas aparece un mensaje de advertencia
 
-La imagen puede descargarse desde el botón de Gradio.
+Junto a la vista previa se incluye un botón para descargar el PNG generado.
