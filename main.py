@@ -1,168 +1,155 @@
-"""Servidor que genera bocetos de pernos de anclaje en SVG."""
+"""Servidor FastAPI que genera un boceto tecnico de pernos de anclaje.
+
+Se usa matplotlib para dibujar en 2D un perno tipo "L" o tipo "J" con sus
+cotas de diametro, largo total, gancho y longitud de rosca. El resultado se
+entrega como una imagen PNG descargable desde el navegador.
+"""
 
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse, Response
 from pathlib import Path
+import io
+import math
 
-# Instancia principal de FastAPI
+# Matplotlib se emplea en modo "Agg" para que funcione sin servidor de ventanas
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 app = FastAPI()
 
 # Ruta al archivo HTML con el formulario
 HTML_PATH = Path(__file__).parent / "static" / "index.html"
 
 
-def generate_svg(
-    bolt_type: str,
-    length: float,
-    hook: float,
-    thread: float,
-    diameter: float,
-) -> str:
-    """Genera un SVG con medidas del perno de anclaje."""
+def draw_bolt_image(bolt_type: str, D: float, L: float, C: float, T: float) -> bytes:
+    """Genera la imagen del perno usando matplotlib.
 
-    # Escala para que el dibujo sea visible en pantalla
-    scale = 2.0
+    Parameters
+    ----------
+    bolt_type : str
+        "L" para perno en L o "J" para perno en J.
+    D : float
+        Diametro del perno.
+    L : float
+        Largo total del perno.
+    C : float
+        Largo del gancho.
+    T : float
+        Longitud de la rosca desde la parte superior.
+    """
 
-    # Longitud del cuerpo sin contar el gancho
-    body_length = max(length - hook, 0)
+    fig, ax = plt.subplots(figsize=(5, 6))
+    ax.set_aspect("equal")
 
-    # Margen alrededor del dibujo
-    margin = 40
+    # Offsets para colocar las cotas alrededor de la figura
+    offset = max(D * 2.0, 20.0)
+    right = D + offset
+    left = -max(2 * C, D) - offset
 
-    # Grosor del perno escalado para el trazo
-    line_thickness = max(diameter * scale, 1)
+    # Cuerpo principal del perno
+    ax.plot([0, 0], [0, L], color="black", linewidth=D)
 
-    # Calculamos el tamaño total del lienzo
-    width = max(hook * scale + margin * 2 + line_thickness, 200)
-    height = length * scale + margin * 2 + line_thickness
+    if bolt_type.upper() == "L":
+        ax.plot([0, -C], [0, 0], color="black", linewidth=D)
+    elif bolt_type.upper() == "J":
+        # Dibuja una media circunferencia orientada hacia la izquierda
+        steps = 50
+        xs = []
+        ys = []
+        for i in range(steps + 1):
+            theta = math.pi * i / steps
+            xs.append(-C + C * math.cos(theta))
+            ys.append(C * math.sin(theta))
+        ax.plot(xs, ys, color="black", linewidth=D)
 
-    # Coordenadas de inicio (centro de la línea)
-    start_x = margin + line_thickness / 2
-    start_y = height - margin - line_thickness / 2
+    # Indicar la zona roscada con una linea discontinua
+    if T > 0:
+        ax.plot([0, 0], [L - T, L], color="gray", linewidth=D * 0.6, linestyle="--")
 
-    # Trazo principal del perno
-    path = f"M {start_x} {start_y} v {-body_length * scale}"
-    if bolt_type == "L":
-        # Para un perno en forma de L dibujamos la patita
-        path += f" h {hook * scale}"
-    elif bolt_type == "J":
-        # Para un perno en J usamos un arco
-        radius = hook * scale / 2
-        path += f" a {radius} {radius} 0 0 1 0 {-hook * scale}"
-
-    # Componentes base del SVG
-    svg_parts = [
-        f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">',
-        '<defs>'
-        '<marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">'
-        '<path d="M0 0 L10 5 L0 10 z" fill="black"/></marker>'
-        '</defs>',
-        f'<path d="{path}" stroke="black" stroke-width="{line_thickness}" '
-        'fill="none"/>'
-    ]
-
-    if thread > 0:
-        # Longitud de la rosca indicada con líneas azules
-        y_thread = start_y - thread * scale
-        svg_parts.append(
-            f'<line x1="{start_x - 5}" y1="{start_y}" x2="{start_x + 5}" y2="{start_y}" stroke="blue"/>'
-        )
-        svg_parts.append(
-            f'<line x1="{start_x - 5}" y1="{y_thread}" x2="{start_x + 5}" y2="{y_thread}" stroke="blue"/>'
-        )
-        text_y = (start_y + y_thread) / 2
-        svg_parts.append(
-            f'<text x="{start_x + 10}" y="{text_y}" font-size="12">Rosca</text>'
-        )
-
-        # Cota de la rosca (flechas rojas)
-        thread_line_x = start_x - 20
-        svg_parts.append(
-            f'<line x1="{thread_line_x}" y1="{start_y}" x2="{thread_line_x}" y2="{y_thread}" '
-            f'stroke="red" marker-start="url(#arrow)" marker-end="url(#arrow)"/>'
-        )
-        svg_parts.append(
-            f'<text x="{thread_line_x - 5}" y="{(start_y + y_thread) / 2}" '
-            f'font-size="12" fill="red" text-anchor="end">{thread} mm</text>'
-        )
-
-    # Cota total del perno
-    length_line_x = start_x + 40
-    svg_parts.append(
-        f'<line x1="{length_line_x}" y1="{start_y}" x2="{length_line_x}" y2="{start_y - length * scale}" '
-        f'stroke="red" marker-start="url(#arrow)" marker-end="url(#arrow)"/>'
+    # ----- Cotas -----
+    # Largo total (lado derecho)
+    ax.annotate(
+        "",
+        xy=(right, 0),
+        xytext=(right, L),
+        arrowprops=dict(arrowstyle="<->", color="red"),
     )
-    svg_parts.append(
-        f'<text x="{length_line_x + 5}" y="{start_y - (length * scale) / 2}" '
-        f'font-size="12" fill="red">{length} mm</text>'
+    ax.text(right + 2, L / 2, f"L: {L} mm", color="red", va="center")
+
+    # Longitud de la rosca (lado izquierdo)
+    ax.annotate(
+        "",
+        xy=(left, L - T),
+        xytext=(left, L),
+        arrowprops=dict(arrowstyle="<->", color="red"),
     )
+    ax.text(left - 2, L - T / 2, f"T: {T} mm", color="red", va="center", ha="right")
 
-    if hook > 0:
-        # Cota del gancho en la parte inferior
-        hook_line_y = start_y + 20
-        svg_parts.append(
-            f'<line x1="{start_x}" y1="{hook_line_y}" x2="{start_x + hook * scale}" y2="{hook_line_y}" '
-            f'stroke="red" marker-start="url(#arrow)" marker-end="url(#arrow)"/>'
-        )
-        svg_parts.append(
-            f'<text x="{start_x + (hook * scale) / 2}" y="{hook_line_y - 5}" '
-            f'font-size="12" fill="red" text-anchor="middle">{hook} mm</text>'
-        )
-
-    # Cota del diámetro del perno
-    diameter_line_y = start_y + 40
-    svg_parts.append(
-        f'<line x1="{start_x - line_thickness / 2}" y1="{diameter_line_y}" '
-        f'x2="{start_x + line_thickness / 2}" y2="{diameter_line_y}" '
-        f'stroke="red" marker-start="url(#arrow)" marker-end="url(#arrow)"/>'
+    # Gancho (parte inferior)
+    if bolt_type.upper() == "L":
+        hook_end = -C
+    else:  # "J"
+        hook_end = -2 * C
+    ax.annotate(
+        "",
+        xy=(0, -offset / 2),
+        xytext=(hook_end, -offset / 2),
+        arrowprops=dict(arrowstyle="<->", color="red"),
     )
-    svg_parts.append(
-        f'<text x="{start_x}" y="{diameter_line_y - 5}" font-size="12" '
-        f'fill="red" text-anchor="middle">{diameter} mm</text>'
+    ax.text(hook_end / 2, -offset / 2 - 2, f"C: {C} mm", color="red", ha="center", va="top")
+
+    # Diametro (debajo del perno)
+    ax.annotate(
+        "",
+        xy=(-D / 2, -offset),
+        xytext=(D / 2, -offset),
+        arrowprops=dict(arrowstyle="<->", color="red"),
     )
+    ax.text(0, -offset - 2, f"D: {D} mm", color="red", ha="center", va="top")
 
-    svg_parts.append('</svg>')
-    return ''.join(svg_parts)
+    # Ajustes finales del grafico
+    ax.axis("off")
+    ax.set_xlim(left, right + offset)
+    ax.set_ylim(-offset * 1.5, L + offset * 0.5)
+
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    buffer.seek(0)
+    return buffer.getvalue()
 
 
-# Pagina principal con el formulario
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
-    """Devuelve el formulario HTML que solicita las medidas."""
+    """Retorna el formulario principal."""
     return HTML_PATH.read_text(encoding="utf-8")
 
 
-# Ruta que devuelve únicamente la imagen en SVG
-@app.get("/svg")
-async def svg_image(
-    bolt_type: str = Query("straight", alias="type"),
-    length: float = 200.0,
-    hook: float = 50.0,
-    thread: float = 50.0,
-    diameter: float = 20.0,
+@app.get("/image")
+async def image(
+    bolt_type: str = Query("L", alias="type"),
+    D: float = Query(20.0, alias="D"),
+    L: float = Query(200.0, alias="L"),
+    C: float = Query(50.0, alias="C"),
+    T: float = Query(50.0, alias="T"),
 ) -> Response:
-    # Generamos el dibujo con los parámetros recibidos
-    svg = generate_svg(bolt_type, length, hook, thread, diameter)
-    return Response(content=svg, media_type="image/svg+xml")
+    """Devuelve la imagen PNG generada."""
+    data = draw_bolt_image(bolt_type, D, L, C, T)
+    return Response(content=data, media_type="image/png")
 
 
-# Pagina auxiliar que muestra el boceto y enlace de descarga
 @app.get("/draw", response_class=HTMLResponse)
 async def draw_page(
-    bolt_type: str = Query("straight", alias="type"),
-    length: float = 200.0,
-    hook: float = 50.0,
-    thread: float = 50.0,
-    diameter: float = 20.0,
+    bolt_type: str = Query("L", alias="type"),
+    D: float = Query(20.0, alias="D"),
+    L: float = Query(200.0, alias="L"),
+    C: float = Query(50.0, alias="C"),
+    T: float = Query(50.0, alias="T"),
 ) -> str:
-    # Armamos la consulta para reutilizarla tanto en la imagen como en el enlace
-    query = (
-        f"type={bolt_type}&length={length}&hook={hook}&thread={thread}"
-        f"&diameter={diameter}"
-    )
-    img_tag = f'<img src="/svg?{query}" alt="boceto">'
-    download = (
-        f'<a href="/svg?{query}" download="bolt.svg">Descargar SVG</a>'
-    )
+    """Muestra la imagen y ofrece la descarga."""
+    query = f"type={bolt_type}&D={D}&L={L}&C={C}&T={T}"
+    img_tag = f'<img src="/image?{query}" alt="boceto">'
+    download = f'<a href="/image?{query}" download="bolt.png">Descargar imagen</a>'
     back = '<p><a href="/">Volver</a></p>'
     return f"<h1>Boceto generado</h1>{img_tag}<br>{download}{back}"
