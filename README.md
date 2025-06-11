@@ -1,6 +1,6 @@
 # Visual-Bolt
 
-Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python**. Se usa **FastAPI** para recibir las medidas y devolver un archivo SVG con cotas (medidas) que puede mostrarse o descargarse desde el navegador.
+Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python**. Se usa **FastAPI** para recibir las medidas y devolver un archivo SVG con cotas (medidas) que puede mostrarse o descargarse desde el navegador. El dibujo es en 2D e incluye el grosor del perno.
 
 ## Estructura del proyecto
 
