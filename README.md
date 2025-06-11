@@ -1,4 +1,5 @@
 # Visual-Bolt
+Graphical representation of custom anchor bolts, by simply entering certain measurements
 
 Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python** y **Matplotlib**. El servidor **FastAPI** recibe las medidas y devuelve una imagen PNG con las cotas (medidas) distribuídas alrededor del perno. El dibujo es en 2D con un estilo similar a un plano técnico.
 
