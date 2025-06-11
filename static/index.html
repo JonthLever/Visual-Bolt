@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Visual Bolt</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        label { display: block; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Visual Bolt</h1>
+    <p>Ingresa las medidas para generar el perno de anclaje. El dibujo incluirá sus cotas.</p>
+    <form action="/draw" method="get">
+        <label>Tipo:
+            <select name="type">
+                <option value="straight">Recto</option>
+                <option value="L">L</option>
+                <option value="J">J</option>
+            </select>
+        </label>
+        <label>Diámetro del perno D (mm):
+            <input type="number" name="D" value="20">
+        </label>
+        <label>Largo total L (mm):
+            <input type="number" name="L" value="200">
+        </label>
+        <label>Gancho C (mm):
+            <input type="number" name="C" value="50">
+        </label>
+        <label>Rosca T (mm):
+            <input type="number" name="T" value="50">
+        </label>
+        <button type="submit">Generar</button>
+    </form>
+</body>
+</html>
