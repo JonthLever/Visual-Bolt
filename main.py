@@ -11,7 +11,13 @@ app = FastAPI()
 HTML_PATH = Path(__file__).parent / "static" / "index.html"
 
 
-def generate_svg(bolt_type: str, length: float, hook: float, thread: float) -> str:
+def generate_svg(
+    bolt_type: str,
+    length: float,
+    hook: float,
+    thread: float,
+    diameter: float,
+) -> str:
     """Genera un SVG con medidas del perno de anclaje."""
 
     # Escala para que el dibujo sea visible en pantalla
@@ -23,13 +29,16 @@ def generate_svg(bolt_type: str, length: float, hook: float, thread: float) -> s
     # Margen alrededor del dibujo
     margin = 40
 
-    # Calculamos el tamaño total del lienzo
-    width = max(hook * scale + margin * 2, 200)
-    height = length * scale + margin * 2
+    # Grosor del perno escalado para el trazo
+    line_thickness = max(diameter * scale, 1)
 
-    # Coordenadas de inicio (abajo a la izquierda del dibujo)
-    start_x = margin
-    start_y = height - margin
+    # Calculamos el tamaño total del lienzo
+    width = max(hook * scale + margin * 2 + line_thickness, 200)
+    height = length * scale + margin * 2 + line_thickness
+
+    # Coordenadas de inicio (centro de la línea)
+    start_x = margin + line_thickness / 2
+    start_y = height - margin - line_thickness / 2
 
     # Trazo principal del perno
     path = f"M {start_x} {start_y} v {-body_length * scale}"
@@ -48,7 +57,8 @@ def generate_svg(bolt_type: str, length: float, hook: float, thread: float) -> s
         '<marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">'
         '<path d="M0 0 L10 5 L0 10 z" fill="black"/></marker>'
         '</defs>',
-        f'<path d="{path}" stroke="black" fill="none"/>'
+        f'<path d="{path}" stroke="black" stroke-width="{line_thickness}" '
+        'fill="none"/>'
     ]
 
     if thread > 0:
@@ -99,6 +109,18 @@ def generate_svg(bolt_type: str, length: float, hook: float, thread: float) -> s
             f'font-size="12" fill="red" text-anchor="middle">{hook} mm</text>'
         )
 
+    # Cota del diámetro del perno
+    diameter_line_y = start_y + 40
+    svg_parts.append(
+        f'<line x1="{start_x - line_thickness / 2}" y1="{diameter_line_y}" '
+        f'x2="{start_x + line_thickness / 2}" y2="{diameter_line_y}" '
+        f'stroke="red" marker-start="url(#arrow)" marker-end="url(#arrow)"/>'
+    )
+    svg_parts.append(
+        f'<text x="{start_x}" y="{diameter_line_y - 5}" font-size="12" '
+        f'fill="red" text-anchor="middle">{diameter} mm</text>'
+    )
+
     svg_parts.append('</svg>')
     return ''.join(svg_parts)
 
@@ -117,9 +139,10 @@ async def svg_image(
     length: float = 200.0,
     hook: float = 50.0,
     thread: float = 50.0,
+    diameter: float = 20.0,
 ) -> Response:
     # Generamos el dibujo con los parámetros recibidos
-    svg = generate_svg(bolt_type, length, hook, thread)
+    svg = generate_svg(bolt_type, length, hook, thread, diameter)
     return Response(content=svg, media_type="image/svg+xml")
 
 
@@ -130,9 +153,13 @@ async def draw_page(
     length: float = 200.0,
     hook: float = 50.0,
     thread: float = 50.0,
+    diameter: float = 20.0,
 ) -> str:
     # Armamos la consulta para reutilizarla tanto en la imagen como en el enlace
-    query = f"type={bolt_type}&length={length}&hook={hook}&thread={thread}"
+    query = (
+        f"type={bolt_type}&length={length}&hook={hook}&thread={thread}"
+        f"&diameter={diameter}"
+    )
     img_tag = f'<img src="/svg?{query}" alt="boceto">'
     download = (
         f'<a href="/svg?{query}" download="bolt.svg">Descargar SVG</a>'
