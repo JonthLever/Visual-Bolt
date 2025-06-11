@@ -1,4 +1,10 @@
 # Visual-Bolt
+El boceto se crea con la función `draw_bolt_diagram`, la cual acepta el tipo de perno (`L` o `J`) y las dimensiones **D**, **L**, **C** y **T**. El área roscada se muestra con un rayado gris y se utilizan líneas de referencia rojas para marcar las medidas.
+
+La página principal (`/`) permite introducir las medidas y elegir el tipo de perno. Al enviar el formulario se redirige a `/draw`, donde se muestra la imagen generada y un enlace para descargarla como PNG.
+
+Para un perno tipo **L** se dibuja un gancho recto a 90°. El perno tipo **J** forma una curva con radio 4×D y, en caso de que **C** sea mayor, se agrega un tramo recto al final de la curva.
+
 Graphical representation of custom anchor bolts, by simply entering certain measurements
 
 Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python** y **Matplotlib**. El servidor **FastAPI** recibe las medidas y devuelve una imagen PNG con las cotas (medidas) distribuídas alrededor del perno. El dibujo es en 2D con un estilo similar a un plano técnico.
