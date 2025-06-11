@@ -1,5 +1,7 @@
 # Visual-Bolt
-Graphical representation of custom anchor bolts, by simply entering certain measurements
+La aplicación funciona únicamente con las bibliotecas disponibles en el entorno (FastAPI y Matplotlib). Para mantener las dependencias al mínimo, los cálculos de la curva tipo J se realizan con funciones básicas de `math` y no requieren NumPy.
+
+El boceto se crea con la función `draw_bolt_diagram`, la cual acepta el tipo de perno (`L` o `J`) y las dimensiones **D**, **L**, **C** y **T**. Para el tipo **J** se puede ajustar el parámetro adicional `closing_angle` (grados) que determina cuánto se cierra la curva del gancho. La sección roscada se indica con un rectángulo rayado (`////`) sobre el cuerpo negro del perno y se utilizan líneas de referencia rojas para marcar las medidas.
 
 Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python** y **Matplotlib**. El servidor **FastAPI** recibe las medidas y devuelve una imagen PNG con las cotas (medidas) distribuídas alrededor del perno. El dibujo es en 2D con un estilo similar a un plano técnico.
 
