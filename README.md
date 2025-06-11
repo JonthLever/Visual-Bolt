@@ -1,6 +1,6 @@
 # Visual-Bolt
 
-Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python**. Se usa **FastAPI** para recibir las medidas y devolver un archivo SVG que puede mostrarse o descargarse desde el navegador.
+Esta pequeña aplicación genera un boceto de perno de anclaje utilizando **Python**. Se usa **FastAPI** para recibir las medidas y devolver un archivo SVG con cotas (medidas) que puede mostrarse o descargarse desde el navegador.
 
 ## Estructura del proyecto
 
@@ -9,7 +9,7 @@ main.py             # Servidor FastAPI y generación del SVG
 static/index.html   # Formulario HTML para solicitar las medidas
 ```
 
-Mantener los archivos separados facilita modificar la lógica de servidor o la interfaz por separado.
+Mantener los archivos separados facilita modificar la lógica de servidor o la interfaz por separado. El archivo `main.py` contiene todo el código de generación y es conveniente dejar la plantilla HTML en la carpeta `static` para poder cambiarla sin tocar el servidor.
 
 ## Ejecución
 

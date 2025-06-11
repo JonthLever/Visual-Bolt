@@ -3,7 +3,6 @@
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse, Response
 from pathlib import Path
-import base64
 
 # Instancia principal de FastAPI
 app = FastAPI()
@@ -13,58 +12,94 @@ HTML_PATH = Path(__file__).parent / "static" / "index.html"
 
 
 def generate_svg(bolt_type: str, length: float, hook: float, thread: float) -> str:
-    """Genera un SVG sencillo representando el perno."""
+    """Genera un SVG con medidas del perno de anclaje."""
 
     # Escala para que el dibujo sea visible en pantalla
     scale = 2.0
 
-    # Calculamos la longitud del cuerpo restando la parte del gancho si existe
+    # Longitud del cuerpo sin contar el gancho
     body_length = max(length - hook, 0)
 
-    # Dimensiones generales del dibujo con un margen adicional
-    width = (hook + 60) * scale
-    height = (length + 60) * scale
+    # Margen alrededor del dibujo
+    margin = 40
+
+    # Calculamos el tamaño total del lienzo
+    width = max(hook * scale + margin * 2, 200)
+    height = length * scale + margin * 2
 
     # Coordenadas de inicio (abajo a la izquierda del dibujo)
-    start_x = 30.0
-    start_y = height - 30.0
+    start_x = margin
+    start_y = height - margin
 
-    # Trazo principal que une el cuerpo con el gancho
+    # Trazo principal del perno
     path = f"M {start_x} {start_y} v {-body_length * scale}"
     if bolt_type == "L":
-        # Para un perno en forma de L simplemente dibujamos la "patita"
+        # Para un perno en forma de L dibujamos la patita
         path += f" h {hook * scale}"
     elif bolt_type == "J":
-        # Para un perno en J usamos un arco con radio la mitad del gancho
+        # Para un perno en J usamos un arco
         radius = hook * scale / 2
         path += f" a {radius} {radius} 0 0 1 0 {-hook * scale}"
 
-    # Piezas que compondrán el SVG final
+    # Componentes base del SVG
     svg_parts = [
         f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">',
+        '<defs>'
+        '<marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">'
+        '<path d="M0 0 L10 5 L0 10 z" fill="black"/></marker>'
+        '</defs>',
         f'<path d="{path}" stroke="black" fill="none"/>'
     ]
 
     if thread > 0:
-        # Indicamos la longitud de la rosca con dos líneas azules
+        # Longitud de la rosca indicada con líneas azules
         y_thread = start_y - thread * scale
         svg_parts.append(
-            f'<line x1="{start_x - 5}" y1="{start_y}" '
-            f'x2="{start_x + 5}" y2="{start_y}" stroke="blue"/>'
+            f'<line x1="{start_x - 5}" y1="{start_y}" x2="{start_x + 5}" y2="{start_y}" stroke="blue"/>'
         )
         svg_parts.append(
-            f'<line x1="{start_x - 5}" y1="{y_thread}" '
-            f'x2="{start_x + 5}" y2="{y_thread}" stroke="blue"/>'
+            f'<line x1="{start_x - 5}" y1="{y_thread}" x2="{start_x + 5}" y2="{y_thread}" stroke="blue"/>'
         )
-
-        # Texto que explica la sección roscada
         text_y = (start_y + y_thread) / 2
         svg_parts.append(
             f'<text x="{start_x + 10}" y="{text_y}" font-size="12">Rosca</text>'
         )
 
+        # Cota de la rosca (flechas rojas)
+        thread_line_x = start_x - 20
+        svg_parts.append(
+            f'<line x1="{thread_line_x}" y1="{start_y}" x2="{thread_line_x}" y2="{y_thread}" '
+            f'stroke="red" marker-start="url(#arrow)" marker-end="url(#arrow)"/>'
+        )
+        svg_parts.append(
+            f'<text x="{thread_line_x - 5}" y="{(start_y + y_thread) / 2}" '
+            f'font-size="12" fill="red" text-anchor="end">{thread} mm</text>'
+        )
+
+    # Cota total del perno
+    length_line_x = start_x + 40
+    svg_parts.append(
+        f'<line x1="{length_line_x}" y1="{start_y}" x2="{length_line_x}" y2="{start_y - length * scale}" '
+        f'stroke="red" marker-start="url(#arrow)" marker-end="url(#arrow)"/>'
+    )
+    svg_parts.append(
+        f'<text x="{length_line_x + 5}" y="{start_y - (length * scale) / 2}" '
+        f'font-size="12" fill="red">{length} mm</text>'
+    )
+
+    if hook > 0:
+        # Cota del gancho en la parte inferior
+        hook_line_y = start_y + 20
+        svg_parts.append(
+            f'<line x1="{start_x}" y1="{hook_line_y}" x2="{start_x + hook * scale}" y2="{hook_line_y}" '
+            f'stroke="red" marker-start="url(#arrow)" marker-end="url(#arrow)"/>'
+        )
+        svg_parts.append(
+            f'<text x="{start_x + (hook * scale) / 2}" y="{hook_line_y - 5}" '
+            f'font-size="12" fill="red" text-anchor="middle">{hook} mm</text>'
+        )
+
     svg_parts.append('</svg>')
-    # Unimos todas las partes para obtener el SVG completo
     return ''.join(svg_parts)
 
 
