@@ -6,7 +6,7 @@ entrega como una imagen PNG descargable desde el navegador.
 """
 
 from fastapi import FastAPI, Query
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pathlib import Path
 import io
 import math
@@ -15,6 +15,7 @@ import math
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 app = FastAPI()
 
@@ -22,8 +23,8 @@ app = FastAPI()
 HTML_PATH = Path(__file__).parent / "static" / "index.html"
 
 
-def draw_bolt_image(bolt_type: str, D: float, L: float, C: float, T: float) -> bytes:
-    """Genera la imagen del perno usando matplotlib.
+def draw_bolt_diagram(bolt_type: str, D: float, L: float, C: float, T: float) -> bytes:
+    """Genera un plano tecnico del perno usando matplotlib.
 
     Parameters
     ----------
@@ -42,33 +43,47 @@ def draw_bolt_image(bolt_type: str, D: float, L: float, C: float, T: float) -> b
     fig, ax = plt.subplots(figsize=(5, 6))
     ax.set_aspect("equal")
 
-    # Offsets para colocar las cotas alrededor de la figura
+    # Espaciado alrededor del perno para colocar las cotas
     offset = max(D * 2.0, 20.0)
-    right = D + offset
-    left = -max(2 * C, D) - offset
 
-    # Cuerpo principal del perno
-    ax.plot([0, 0], [0, L], color="black", linewidth=D)
+    # --------- Dibujo del perno ---------
+    ax.plot([0, 0], [0, L], color="black", linewidth=D, solid_capstyle="butt")
 
     if bolt_type.upper() == "L":
-        ax.plot([0, -C], [0, 0], color="black", linewidth=D)
-    elif bolt_type.upper() == "J":
-        # Dibuja una media circunferencia orientada hacia la izquierda
-        steps = 50
-        xs = []
-        ys = []
+        ax.plot([0, -C], [0, 0], color="black", linewidth=D, solid_capstyle="butt")
+        hook_left = -C
+    else:  # tipo J
+        r = 4 * D
+        steps = 40
+        arc_x = []
+        arc_y = []
         for i in range(steps + 1):
-            theta = math.pi * i / steps
-            xs.append(-C + C * math.cos(theta))
-            ys.append(C * math.sin(theta))
-        ax.plot(xs, ys, color="black", linewidth=D)
+            theta = -math.pi * i / steps
+            arc_x.append(-r + r * math.cos(theta))
+            arc_y.append(r * math.sin(theta))
+        ax.plot(arc_x, arc_y, color="black", linewidth=D, solid_capstyle="butt")
+        if C > 2 * r:
+            ax.plot([-C, -2 * r], [0, 0], color="black", linewidth=D, solid_capstyle="butt")
+        hook_left = -max(C, 2 * r)
 
-    # Indicar la zona roscada con una linea discontinua
+    # Zona roscada en gris con rayado
     if T > 0:
-        ax.plot([0, 0], [L - T, L], color="gray", linewidth=D * 0.6, linestyle="--")
+        thread = patches.Rectangle(
+            (-D / 2, L - T),
+            D,
+            T,
+            linewidth=1,
+            edgecolor="gray",
+            facecolor="none",
+            hatch="////",
+        )
+        ax.add_patch(thread)
 
     # ----- Cotas -----
-    # Largo total (lado derecho)
+    right = D / 2 + offset
+    left = hook_left - offset
+
+    # Largo total
     ax.annotate(
         "",
         xy=(right, 0),
@@ -77,7 +92,7 @@ def draw_bolt_image(bolt_type: str, D: float, L: float, C: float, T: float) -> b
     )
     ax.text(right + 2, L / 2, f"L: {L} mm", color="red", va="center")
 
-    # Longitud de la rosca (lado izquierdo)
+    # Longitud de la rosca
     ax.annotate(
         "",
         xy=(left, L - T),
@@ -87,17 +102,13 @@ def draw_bolt_image(bolt_type: str, D: float, L: float, C: float, T: float) -> b
     ax.text(left - 2, L - T / 2, f"T: {T} mm", color="red", va="center", ha="right")
 
     # Gancho (parte inferior)
-    if bolt_type.upper() == "L":
-        hook_end = -C
-    else:  # "J"
-        hook_end = -2 * C
     ax.annotate(
         "",
         xy=(0, -offset / 2),
-        xytext=(hook_end, -offset / 2),
+        xytext=(-C, -offset / 2),
         arrowprops=dict(arrowstyle="<->", color="red"),
     )
-    ax.text(hook_end / 2, -offset / 2 - 2, f"C: {C} mm", color="red", ha="center", va="top")
+    ax.text(-C / 2, -offset / 2 - 2, f"C: {C} mm", color="red", ha="center", va="top")
 
     # Diametro (debajo del perno)
     ax.annotate(
@@ -133,10 +144,10 @@ async def image(
     L: float = Query(200.0, alias="L"),
     C: float = Query(50.0, alias="C"),
     T: float = Query(50.0, alias="T"),
-) -> Response:
+) -> StreamingResponse:
     """Devuelve la imagen PNG generada."""
-    data = draw_bolt_image(bolt_type, D, L, C, T)
-    return Response(content=data, media_type="image/png")
+    data = draw_bolt_diagram(bolt_type, D, L, C, T)
+    return StreamingResponse(io.BytesIO(data), media_type="image/png")
 
 
 @app.get("/draw", response_class=HTMLResponse)
